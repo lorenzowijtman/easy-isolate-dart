@@ -6,26 +6,27 @@ class EasyIsolate {
   Isolate? _isolate;
   bool _running = false;
   bool _paused = false;
-  ReceivePort? _receivePort;
   Capability? _capability;
-  SendPort? sendPort;
-  ThreadParams? params;
+  // ThreadParams? params;
+
+  late SendPort sendPort;
+  late ReceivePort receivePort;
 
   Function(dynamic) messageHandler;
 
-  Function onDone;
+  Function? onDone;
 
-  Function(ThreadParams?) operation;
+  void Function(ThreadParams) operation;
 
   EasyIsolate({
     required this.messageHandler,
-    required this.onDone,
     required this.operation,
-  });
+  }) {
+    this.receivePort = ReceivePort();
+    this.sendPort = receivePort.sendPort;
+  }
 
   bool get running => _running;
-
-  set threadParams(ThreadParams params) => this.params = params;
 
   void pause() {
     if (_isolate != null) {
@@ -37,29 +38,23 @@ class EasyIsolate {
     }
   }
 
-  void start() async {
+  void start(ThreadParams params) async {
     if (_running) {
       return;
     }
     _running = true;
 
-    _receivePort ?? ReceivePort();
-
-    if (params == null) {
-      sendPort = _receivePort!.sendPort;
-      params = ThreadParams(sendPort: _receivePort!.sendPort);
-    }
-
     _isolate = await Isolate.spawn(
       operation,
       params,
     );
-    _receivePort!.listen(messageHandler, onDone: () => onDone());
+
+    receivePort.listen(messageHandler, onDone: () => onDone);
   }
 
   void stop() {
     if (_isolate != null) {
-      _receivePort!.close();
+      receivePort.close();
       _isolate!.kill(priority: Isolate.immediate);
       _isolate = null;
       _running = false;
@@ -68,8 +63,8 @@ class EasyIsolate {
 }
 
 /// Params class to extend upon
-class ThreadParams {
-  final SendPort sendPort;
+abstract class ThreadParams {
+  SendPort sendPort;
 
   ThreadParams({required this.sendPort});
 }
