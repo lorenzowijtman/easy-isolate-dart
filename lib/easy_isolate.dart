@@ -2,12 +2,11 @@ library easy_isolate;
 
 import 'dart:isolate';
 
-class EasyIsolate {
+class EasyIsolate<T> {
   Isolate? _isolate;
   bool _running = false;
   bool _paused = false;
   Capability? _capability;
-  // ThreadParams? params;
 
   late SendPort sendPort;
   late ReceivePort receivePort;
@@ -16,7 +15,7 @@ class EasyIsolate {
 
   Function? onDone;
 
-  void Function(ThreadParams) operation;
+  void Function(T) operation;
 
   EasyIsolate({
     required this.messageHandler,
@@ -38,7 +37,7 @@ class EasyIsolate {
     }
   }
 
-  void start(ThreadParams params) async {
+  void start(T params) async {
     if (_running) {
       return;
     }
