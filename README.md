@@ -1,39 +1,73 @@
-<!-- 
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+##Example
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/guides/libraries/writing-package-pages). 
-
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-library-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/developing-packages). 
--->
-
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
-
-## Features
-
-TODO: List what your package can do. Maybe include images, gifs, or videos.
-
-## Getting started
-
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
-
-## Usage
-
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder. 
-
-```dart
-const like = 'sample';
 ```
+class ConnectionPoll {
+  bool isConnected = true;
+  EasyIsolate<PollParams>? isolate;
+  final BuildContext context;
 
-## Additional information
+  ConnectionPoll(this.context);
 
-TODO: Tell users more about the package: where to find more information, how to 
-contribute to the package, how to file issues, what response they can expect 
-from the package authors, and more.
+  void start() {
+    isolate = EasyIsolate(
+      messageHandler: messageHandler,
+      operation: pollConnection,
+    );
+
+    final params = PollParams(
+      sendPort: isolate!.sendPort,
+      connected: true,
+      timeout: 30,
+    );
+
+    isolate?.start.call(params);
+  }
+
+  void stop() => isolate?.stop.call();
+
+  void pause() => isolate?.pause.call();
+
+  void resume() => isolate?.pause.call();
+
+  void messageHandler(dynamic message) {
+    if (message is bool && !message) {
+      showSnackbar(context: context, text: 'Internet connection lost');
+    } else if (message is int) {
+      isolate?.pause.call();
+      Future.delayed(Duration(seconds: message))
+          .then((_) => isolate?.pause.call());
+    }
+  }
+
+  static Future pollConnection(PollParams params) async {
+    do {
+      try {
+        final result = await InternetAddress.lookup('example.com');
+        if (result.isEmpty && result[0].rawAddress.isEmpty) {
+          params.sendPort.send(false);
+        }
+        params.sendPort.send(params.timeout);
+      } on SocketException catch (_) {
+        params.sendPort.send(false);
+      }
+    } while (true);
+  }
+}
+
+class PollParams implements ThreadParams {
+  @override
+  SendPort sendPort;
+
+  bool connected;
+
+  /// Timeout in seconds
+  int timeout;
+
+  PollParams({
+    required this.sendPort,
+    required this.connected,
+    required this.timeout,
+  });
+}
+
+```
